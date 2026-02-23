@@ -1,0 +1,5 @@
+node_modules/
+src/.env
+src/public/uploads/*
+!src/public/uploads/placeholder.txt
+.DS_Store
