@@ -1,12 +1,14 @@
+import 'dotenv/config';
 import knex from 'knex';
+
 export default knex({
   client: 'pg',
   connection: {
-    host: 'aws-1-ap-southeast-2.pooler.supabase.com',
-    post: 5432,
-    user: 'postgres.oirldpzqsfngdmisrakp',
-    password: 'WYaxZ0myJw9fIbPH',
-    database: 'postgres'
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 5432,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
   },
   pool: { min: 0, max: 7 }
 });
