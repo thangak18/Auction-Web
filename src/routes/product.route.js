@@ -7,17 +7,20 @@ import * as biddingHistoryModel from '../models/biddingHistory.model.js';
 import * as productCommentModel from '../models/productComment.model.js';
 import * as categoryModel from '../models/category.model.js';
 import * as productDescUpdateModel from '../models/productDescriptionUpdate.model.js';
-import * as autoBiddingModel from '../models/autoBidding.model.js';
+// import * as autoBiddingModel from '../models/autoBidding.model.js';
 import * as systemSettingModel from '../models/systemSetting.model.js';
 import * as rejectedBidderModel from '../models/rejectedBidder.model.js';
 import * as orderModel from '../models/order.model.js';
 import * as invoiceModel from '../models/invoice.model.js';
 import * as orderChatModel from '../models/orderChat.model.js';
+import * as productServices from '../services/product.service.js';
+import * as reviewServices from '../services/review.service.js';
 import { isAuthenticated } from '../middlewares/auth.mdw.js';
 import { sendMail } from '../utils/mailer.js';
 import db from '../utils/db.js';
-import multer from 'multer';
-import path from 'path';
+import { calculatePagination } from '../utils/pagination.js';
+import { uploadService } from '../middlewares/upload.mdw.js';
+
 const router = express.Router();
 
 const prepareProductList = async (products) => {
@@ -64,11 +67,9 @@ router.get('/category', async (req, res) => {
   const total = await productModel.countByCategoryIds(categoryIds);
   console.log('Total products in category:', total.count);
   const totalCount = parseInt(total.count) || 0;
-  const nPages = Math.ceil(totalCount / limit);
-  let from = (page - 1) * limit + 1;
-  let to = page * limit;
-  if (to > totalCount) to = totalCount;
-  if (totalCount === 0) { from = 0; to = 0; }
+  
+  const {nPages, from, to} = calculatePagination(totalCount, limit, page);
+
   res.render('vwProduct/list', { 
     products: products,
     totalCount,
@@ -117,11 +118,7 @@ router.get('/search', async (req, res) => {
   const total = await productModel.countByKeywords(keywords, logic);
   const totalCount = parseInt(total.count) || 0;
   
-  const nPages = Math.ceil(totalCount / limit);
-  let from = (page - 1) * limit + 1;
-  let to = page * limit;
-  if (to > totalCount) to = totalCount;
-  if (totalCount === 0) { from = 0; to = 0; }
+  const {nPages, from, to} = calculatePagination(totalCount, limit, page);
   
   res.render('vwProduct/list', { 
     products: products,
@@ -148,42 +145,20 @@ router.get('/detail', async (req, res) => {
   }
   console.log('Product details:', product);
   // Determine product status
-  const now = new Date();
-  const endDate = new Date(product.end_at);
-  let productStatus = 'ACTIVE';
+  const productStatus = productServices.determineProductStatus(product);
   
-  // Auto-close auction if time expired and not yet closed
-  if (endDate <= now && !product.closed_at && product.is_sold === null) {
-    // Update closed_at to mark auction end time
-    await productModel.updateProduct(productId, { closed_at: endDate });
-    product.closed_at = endDate; // Update local object
-  }
-  
-  if (product.is_sold === true) {
-    productStatus = 'SOLD';
-  } else if (product.is_sold === false) {
-    productStatus = 'CANCELLED';
-  } else if ((endDate <= now || product.closed_at) && product.highest_bidder_id) {
-    productStatus = 'PENDING';
-  } else if (endDate <= now && !product.highest_bidder_id) {
-    productStatus = 'EXPIRED';
-  } else if (endDate > now && !product.closed_at) {
-    productStatus = 'ACTIVE';
-  }
+  const isViewable = productServices.checkViewPermission(
+    productStatus, 
+    userId, 
+    product.seller_id, 
+    product.highest_bidder_id
+  );
 
-  // Authorization check: Non-ACTIVE products can only be viewed by seller or highest bidder
-  if (productStatus !== 'ACTIVE') {
-    if (!userId) {
-      // User not logged in, cannot view non-active products
-      return res.status(403).render('403', { message: 'You do not have permission to view this product' });
-    }
-    
-    const isSeller = product.seller_id === userId;
-    const isHighestBidder = product.highest_bidder_id === userId;
-    
-    if (!isSeller && !isHighestBidder) {
-      return res.status(403).render('403', { message: 'You do not have permission to view this product' });
-    }
+  if (!isViewable) {
+    return res.status(403).render(
+      '403',
+      { message: 'You do not have permission to view this product' }
+    );
   }
 
   // Pagination for comments
@@ -302,34 +277,6 @@ router.get('/bidding-history', isAuthenticated, async (req, res) => {
     console.error('Error loading bidding history:', error);
     res.status(500).render('500', { message: 'Unable to load bidding history' });
   }
-});
-
-// ROUTE 1: THÊM VÀO WATCHLIST (POST)
-router.post('/watchlist', isAuthenticated, async (req, res) => {
-  const userId = req.session.authUser.id;
-  const productId = req.body.productId;
-
-  const isInWatchlist = await watchListModel.isInWatchlist(userId, productId);
-  if (!isInWatchlist) {
-    await watchListModel.addToWatchlist(userId, productId);
-  }
-
-  // SỬA LẠI: Lấy địa chỉ trang trước đó từ header
-  // Nếu không tìm thấy (trường hợp hiếm), quay về trang chủ '/'
-  const retUrl = req.headers.referer || '/';
-  res.redirect(retUrl);
-});
-
-// ROUTE 2: XÓA KHỎI WATCHLIST (DELETE)
-router.delete('/watchlist', isAuthenticated, async (req, res) => {
-  const userId = req.session.authUser.id;
-  const productId = req.body.productId;
-
-  await watchListModel.removeFromWatchlist(userId, productId);
-
-  // SỬA LẠI: Tương tự như trên
-  const retUrl = req.headers.referer || '/';
-  res.redirect(retUrl);
 });
 
 // ROUTE 3: ĐẶT GIÁ (POST) - Server-side rendering with automatic bidding
@@ -922,48 +869,6 @@ router.post('/comment', isAuthenticated, async (req, res) => {
 });
 
 
-// ROUTE 4: GET BIDDING HISTORY
-router.get('/bid-history/:productId', async (req, res) => {
-  try {
-    const productId = parseInt(req.params.productId);
-    const history = await biddingHistoryModel.getBiddingHistory(productId);
-    res.json({ success: true, data: history });
-  } catch (error) {
-    console.error('Get bid history error:', error);
-    res.status(500).json({ success: false, message: 'Unable to load bidding history' });
-  }
-  const result = await productModel.findByProductId(productId);
-  const relatedProducts = await productModel.findRelatedProducts(productId);
-  const product = {
-    thumbnail: result[0].thumbnail,
-    sub_images: result.reduce((acc, curr) => {
-      if (curr.img_link) {
-        acc.push(curr.img_link);
-      }
-      return acc;
-    }, []),
-    id: result[0].id,
-    name: result[0].name,
-    starting_price: result[0].starting_price,
-    current_price: result[0].current_price,
-    seller_id: result[0].seller_id,
-    seller_fullname: result[0].seller_name,
-    seller_rating: result[0].seller_rating_plus / (result[0].seller_rating_plus + result[0].seller_rating_minus),
-    seller_member_since: new Date(result[0].seller_created_at).getFullYear(),
-    buy_now_price: result[0].buy_now_price,
-    seller_id: result[0].seller_id,
-    hightest_bidder_id: result[0].highest_bidder_id,
-    bidder_name: result[0].bidder_name,
-    category_name: result[0].category_name,
-    bid_count: result[0].bid_count,
-    created_at: result[0].created_at,
-    end_at: result[0].end_at,
-    description: result[0].description,
-    related_products: relatedProducts
-  }
-  res.render('vwProduct/details', { product });
-});
-
 // ROUTE: COMPLETE ORDER PAGE (For PENDING products)
 router.get('/complete-order', isAuthenticated, async (req, res) => {
   const userId = req.session.authUser.id;
@@ -980,19 +885,7 @@ router.get('/complete-order', isAuthenticated, async (req, res) => {
   }
   
   // Determine product status
-  const now = new Date();
-  const endDate = new Date(product.end_at);
-  let productStatus = 'ACTIVE';
-  
-  if (product.is_sold === true) {
-    productStatus = 'SOLD';
-  } else if (product.is_sold === false) {
-    productStatus = 'CANCELLED';
-  } else if ((endDate <= now || product.closed_at) && product.highest_bidder_id) {
-    productStatus = 'PENDING';
-  } else if (endDate <= now && !product.highest_bidder_id) {
-    productStatus = 'EXPIRED';
-  }
+  const productStatus = productServices.determineProductStatus(product);
   
   // Only PENDING products can access this page
   if (productStatus !== 'PENDING') {
@@ -1071,33 +964,7 @@ router.get('/complete-order', isAuthenticated, async (req, res) => {
 // IMAGE UPLOAD FOR PAYMENT/SHIPPING PROOFS
 // ===================================================================================
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'public/uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-  fileFilter: function (req, file, cb) {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Chỉ chấp nhận file ảnh (jpg, png, gif)!'));
-    }
-  }
-});
-
-router.post('/order/upload-images', isAuthenticated, upload.array('images', 5), async (req, res) => {
+router.post('/order/upload-images', isAuthenticated, uploadService.arrayImages(5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
@@ -1784,16 +1651,13 @@ router.get('/seller/:sellerId/ratings', async (req, res) => {
     }
     
     // Get rating point
-    const ratingData = await reviewModel.calculateRatingPoint(sellerId);
-    const rating_point = ratingData ? ratingData.rating_point : 0;
+    const rating_point = await reviewServices.getRatingPoint(sellerId);
     
     // Get all reviews
     const reviews = await reviewModel.getReviewsByUserId(sellerId);
     
     // Calculate statistics
-    const totalReviews = reviews.length;
-    const positiveReviews = reviews.filter(r => r.rating === 1).length;
-    const negativeReviews = reviews.filter(r => r.rating === -1).length;
+    const { totalReviews, positiveReviews, negativeReviews } = reviewServices.calculateStatistics(reviews);
     
     res.render('vwProduct/seller-ratings', {
       sellerName: seller.fullname,
@@ -1826,16 +1690,13 @@ router.get('/bidder/:bidderId/ratings', async (req, res) => {
     }
     
     // Get rating point
-    const ratingData = await reviewModel.calculateRatingPoint(bidderId);
-    const rating_point = ratingData ? ratingData.rating_point : 0;
+    const rating_point = await reviewServices.getRatingPoint(bidderId);
     
     // Get all reviews
     const reviews = await reviewModel.getReviewsByUserId(bidderId);
     
     // Calculate statistics
-    const totalReviews = reviews.length;
-    const positiveReviews = reviews.filter(r => r.rating === 1).length;
-    const negativeReviews = reviews.filter(r => r.rating === -1).length;
+    const { totalReviews, positiveReviews, negativeReviews } = reviewServices.calculateStatistics(reviews);
     
     // Mask bidder name
     const maskedName = bidder.fullname ? bidder.fullname.split('').map((char, index) => 

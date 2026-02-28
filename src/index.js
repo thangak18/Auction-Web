@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
+import fs, { watch } from 'fs';
 import passport from './utils/passport.js';
 
 // Import Scheduled Jobs
@@ -24,6 +24,8 @@ import adminAccountRouter from './routes/admin/account.route.js';
 import adminProductRouter from './routes/admin/product.route.js';
 import adminSystemRouter from './routes/admin/system.route.js';
 import sellerRouter from './routes/seller.route.js';
+import watchlistRouter from './routes/watchlist.route.js';
+import commentRouter from './routes/comment.route.js';
 // Import Middlewares
 import { isAuthenticated, isSeller, isAdmin } from './middlewares/auth.mdw.js';
 import * as categoryModel from './models/category.model.js';
@@ -399,6 +401,9 @@ app.get('/api/categories', async (req, res) => {
 app.use('/', homeRouter);
 app.use('/products', productRouter);
 app.use('/account', accountRouter);
+app.use('/products/watchlist', watchlistRouter);
+app.use('/products/comment', commentRouter);
+
 
 app.listen(PORT, function () {
   console.log(`Server is running on http://localhost:${PORT}`);

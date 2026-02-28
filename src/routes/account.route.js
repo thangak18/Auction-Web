@@ -8,6 +8,8 @@ import * as reviewModel from '../models/review.model.js';
 import * as autoBiddingModel from '../models/autoBidding.model.js';
 import { isAuthenticated } from '../middlewares/auth.mdw.js';
 import { sendMail } from '../utils/mailer.js';
+import { generateOtpEmail } from '../utils/emailTemplates.js';
+import { calculatePagination } from '../utils/pagination.js';
 
 const router = express.Router();
 
@@ -91,11 +93,11 @@ router.post('/forgot-password', async (req, res) => {
   await sendMail({
     to: email,
     subject: 'Password Reset for Your Online Auction Account',
-    html: `
-      <p>Hi ${user.fullname},</p>
-      <p>Your OTP code for password reset is: <strong>${otp}</strong></p>
-      <p>This code will expire in 15 minutes.</p>
-    `,
+    html: generateOtpEmail(user.fullname, otp, {
+      isRegister : false, 
+      isNew : false, 
+      isPasswordReset : true, 
+    }),
   });
   return res.render('vwAccount/auth/verify-forgot-password-otp', {
     email,
@@ -140,11 +142,10 @@ router.post('/resend-forgot-password-otp', async (req, res) => {
   await sendMail({
     to: email,
     subject: 'New OTP for Password Reset',
-    html: `
-      <p>Hi ${user.fullname},</p>
-      <p>Your new OTP code for password reset is: <strong>${otp}</strong></p>
-      <p>This code will expire in 15 minutes.</p>
-    `,
+    html: generateOtpEmail(user.fullname, otp, {
+      isNew: true,
+      isPasswordReset: true,
+    }),
   });
   return res.render('vwAccount/auth/verify-forgot-password-otp', {
     email,
@@ -207,11 +208,10 @@ router.post('/signin', async function (req, res) {
     await sendMail({
       to: email,
       subject: 'Verify your Online Auction account',
-      html: `
-        <p>Hi ${user.fullname},</p>
-        <p>Your OTP code is: <strong>${otp}</strong></p>
-        <p>This code will expire in 15 minutes.</p>
-      `,
+      html: generateOtpEmail(user.fullname, otp, {
+        isNew: false,
+        isPasswordReset: false 
+      }),
     });
 
     return res.redirect(
@@ -309,15 +309,10 @@ router.post('/signup', async function (req, res) {
   await sendMail({
     to: email,
     subject: 'Verify your Online Auction account',
-    html: `
-        <p>Hi ${fullname},</p>
-        <p>Thank you for registering at Online Auction.</p>
-        <p>Your OTP code is: <strong>${otp}</strong></p>
-        <p>This code will expire in 15 minutes.</p>
-        <p>You can enter this code on the verification page, or click the link below:</p>
-        <p><a href="${verifyUrl}">Verify your email</a></p>
-        <p>If you did not register, please ignore this email.</p>
-        `,
+    html: generateOtpEmail(fullname, otp, {
+      isRegister: true, 
+      verifyUrl: verifyUrl
+    }),
   });
 
   // Chuyển sang trang verify email (GET /verify-email)
@@ -390,11 +385,10 @@ router.post('/resend-otp', async (req, res) => {
   await sendMail({
     to: email,
     subject: 'New OTP for email verification',
-    html: `
-      <p>Hi ${user.fullname},</p>
-      <p>Your new OTP code is: <strong>${otp}</strong></p>
-      <p>This code will expire in 15 minutes.</p>
-    `,
+    html: generateOtpEmail(user.fullname, otp, {
+      isNew: true,
+      isPasswordReset: false,
+    }),
   });
 
   return res.render('vwAccount/verify-otp', {
@@ -544,11 +538,9 @@ router.get('/watchlist', isAuthenticated ,async (req, res) => {
   const watchlistProducts = await watchlistModel.searchPageByUserId(currentUserId, limit, offset);
   const total = await watchlistModel.countByUserId(currentUserId);
   const totalCount = Number(total.count);
-  const nPages = Math.ceil(totalCount / limit);
-  let from = (page - 1) * limit + 1;
-  let to = page * limit;
-  if (to > totalCount) to = totalCount;
-  if (totalCount === 0) { from = 0; to = 0; }
+
+  const {nPages, from, to} = calculatePagination(totalCount, limit, page);
+  
   res.render('vwAccount/watchlist', {
     products: watchlistProducts,
     totalCount,

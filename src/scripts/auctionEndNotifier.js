@@ -148,9 +148,17 @@ export async function checkAndNotifyEndedAuctions() {
 export function startAuctionEndNotifier(intervalSeconds = 30) {
   console.log(`🚀 Auction End Notifier started (checking every ${intervalSeconds} second(s))`);
   
-  // Chạy ngay lần đầu
-  checkAndNotifyEndedAuctions();
-  
-  // Sau đó chạy định kỳ
-  setInterval(checkAndNotifyEndedAuctions, intervalSeconds * 1000);
+  setInterval(async () => {
+    try {
+      const closedCount = await productModel.closeExpiredAuctions();
+      if (closedCount > 0) {
+        console.log(`🔒 [Auto-Close] Đã đóng ${closedCount} phiên đấu giá hết hạn.`);
+      }
+
+      await checkAndNotifyEndedAuctions();
+
+    } catch (error) {
+      console.error('❌ Lỗi trong tiến trình chạy ngầm (Background Job):', error);
+    }
+  }, intervalSeconds * 1000);
 }
