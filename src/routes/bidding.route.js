@@ -9,6 +9,7 @@ import { isAuthenticated } from '../middlewares/auth.mdw.js';
 import { sendMail } from '../utils/mailer.js';
 import db from '../utils/db.js';
 import { bidPlacedTemplate, bidRejectedTemplate, newBidReceivedTemplate, outbidOrPriceUpdateTemplate } from '../utils/emailTemplates.js';
+import { sendBidNotificationEmails } from '../services/mail.service.js';
 
 const router = express.Router();
 
@@ -42,6 +43,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 // ROUTE 3: ĐẶT GIÁ (POST) - Server-side rendering with automatic bidding
+
 router.post('/', isAuthenticated, async (req, res) => {
   const userId = req.session.authUser.id;
   const productId = parseInt(req.body.productId);
@@ -270,6 +272,7 @@ router.post('/', isAuthenticated, async (req, res) => {
       `, [productId, userId, bidAmount]);
 
       return { 
+        productId,
         newCurrentPrice, 
         newHighestBidderId, 
         userId, 
@@ -291,65 +294,7 @@ router.post('/', isAuthenticated, async (req, res) => {
     const productUrl = `${req.protocol}://${req.get('host')}/products/detail?id=${productId}`;
     
     // Fire and forget - don't await email sending
-    (async () => {
-      try {
-        // Get user info for emails
-        const [seller, currentBidder, previousBidder] = await Promise.all([
-          userModel.findById(result.sellerId),
-          userModel.findById(result.userId),
-          result.previousHighestBidderId && result.previousHighestBidderId !== result.userId 
-            ? userModel.findById(result.previousHighestBidderId) 
-            : null
-        ]);
-
-        // Send all emails in parallel instead of sequentially
-        const emailPromises = [];
-
-        // 1. Email to SELLER - New bid notification
-        if (seller && seller.email) {
-          emailPromises.push(sendMail({
-          to: seller.email,
-          subject: `💰 New bid on your product: ${result.productName}`,
-          html: newBidReceivedTemplate(seller, result, currentBidder, productUrl)
-          }));
-        }
-
-        // 2. Email to CURRENT BIDDER - Bid confirmation
-        if (currentBidder && currentBidder.email) {
-          const isWinning = result.newHighestBidderId === result.userId;
-          emailPromises.push(sendMail({
-          to: currentBidder.email,
-          subject: isWinning 
-            ? `✅ You're winning: ${result.productName}` 
-            : `📊 Bid placed: ${result.productName}`,
-          html: bidPlacedTemplate(currentBidder, result, isWinning, productUrl)
-          }));
-        }
-
-        // 3. Email to PREVIOUS HIGHEST BIDDER - Price update notification
-        // Send whenever price changes and there was a previous bidder (not the current bidder)
-        if (previousBidder && previousBidder.email && result.priceChanged) {
-          const wasOutbid = result.newHighestBidderId !== result.previousHighestBidderId;
-          
-          emailPromises.push(sendMail({
-          to: previousBidder.email,
-          subject: wasOutbid 
-            ? `⚠️ You've been outbid: ${result.productName}`
-            : `📊 Price updated: ${result.productName}`,
-          html: outbidOrPriceUpdateTemplate(previousBidder, result, wasOutbid, productUrl)
-          }));
-        }
-
-        // Send all emails in parallel
-        if (emailPromises.length > 0) {
-          await Promise.all(emailPromises);
-          console.log(`${emailPromises.length} bid notification email(s) sent for product #${productId}`);
-        }
-      } catch (emailError) {
-        console.error('Failed to send bid notification emails:', emailError);
-        // Don't fail - emails are sent asynchronously
-      }
-    })(); // Execute async function immediately but don't wait for it
+    sendBidNotificationEmails(result, productUrl);
 
     // Success message
     let baseMessage = '';

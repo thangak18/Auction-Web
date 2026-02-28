@@ -142,3 +142,69 @@ export const processAuctionEndedMail = async (auction, baseUrl) => {
 
   await Promise.all(emailTasks);
 };
+
+// ==========================================
+// BIDDING SECTION
+// ==========================================
+
+/**
+ * Xử lý việc gửi email thông báo sau khi đặt giá thầu (Asynchronous / Fire & Forget)
+ * * @param {Object} result - Kết quả trả về từ transaction đặt giá
+ * @param {string} productUrl - Đường dẫn tới trang chi tiết sản phẩm
+ */
+export const sendBidNotificationEmails = async (result, productUrl) => {
+  try {
+    // 1. Fetch thông tin user để gửi email
+    const [seller, currentBidder, previousBidder] = await Promise.all([
+      userModel.findById(result.sellerId),
+      userModel.findById(result.userId),
+      result.previousHighestBidderId && result.previousHighestBidderId !== result.userId 
+        ? userModel.findById(result.previousHighestBidderId) 
+        : null
+    ]);
+
+    const emailPromises = [];
+
+    // 2. Email cho SELLER - Có lượt bid mới
+    if (seller && seller.email) {
+      emailPromises.push(sendMail({
+        to: seller.email,
+        subject: `💰 New bid on your product: ${result.productName}`,
+        html: templates.newBidReceivedTemplate(seller, result, currentBidder, productUrl)
+      }));
+    }
+
+    // 3. Email cho CURRENT BIDDER - Xác nhận đặt giá
+    if (currentBidder && currentBidder.email) {
+      const isWinning = result.newHighestBidderId === result.userId;
+      emailPromises.push(sendMail({
+        to: currentBidder.email,
+        subject: isWinning 
+          ? `✅ You're winning: ${result.productName}` 
+          : `📊 Bid placed: ${result.productName}`,
+        html: templates.bidPlacedTemplate(currentBidder, result, isWinning, productUrl)
+      }));
+    }
+
+    // 4. Email cho PREVIOUS BIDDER - Bị vượt giá hoặc cập nhật giá
+    if (previousBidder && previousBidder.email && result.priceChanged) {
+      const wasOutbid = result.newHighestBidderId !== result.previousHighestBidderId;
+      emailPromises.push(sendMail({
+        to: previousBidder.email,
+        subject: wasOutbid 
+          ? `⚠️ You've been outbid: ${result.productName}`
+          : `📊 Price updated: ${result.productName}`,
+        html: templates.outbidOrPriceUpdateTemplate(previousBidder, result, wasOutbid, productUrl)
+      }));
+    }
+
+    // 5. Gửi tất cả email song song
+    if (emailPromises.length > 0) {
+      await Promise.all(emailPromises);
+      console.log(`${emailPromises.length} bid notification email(s) sent for product #${result.productId}`);
+    }
+  } catch (emailError) {
+    // Chỉ log ra lỗi, không throw để tránh làm ảnh hưởng luồng chính
+    console.error('Failed to send bid notification emails:', emailError);
+  }
+};
