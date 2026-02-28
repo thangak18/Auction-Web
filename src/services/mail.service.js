@@ -5,7 +5,9 @@ import * as productCommentModel from '../models/productComment.model.js';
 import { sendMail } from '../utils/mailer.js';
 import * as templates from '../utils/emailTemplates.js';
 
-// === COMMENT SECTION ===
+// ==========================================
+// COMMENT SECTION
+// ==========================================
 
 // 1. Định nghĩa các kịch bản gửi email (Strategy Pattern)
 const mailStrategies = {
@@ -93,3 +95,50 @@ export const notifyNewComment = async (productId, userId, content, parentId, pro
   }
 };
 
+// ==========================================
+// AUCTION END SECTION
+// ==========================================
+
+export const processAuctionEndedMail = async (auction, baseUrl) => {
+  const productUrl = `${baseUrl}/products/detail?id=${auction.id}`;
+  const newAuctionUrl = `${baseUrl}/seller/add`;
+  
+  const emailTasks = [];
+
+  if (auction.highest_bidder_id) {
+    // 1. Gửi cho người thắng
+    if (auction.winner_email) {
+      emailTasks.push(
+        sendMail({
+          to: auction.winner_email,
+          subject: `🎉 Congratulations! You won the auction: ${auction.name}`,
+          html: templates.auctionWinnerTemplate(auction.winner_name, auction.name, auction.current_price, productUrl)
+        }).then(() => console.log(`✅ Winner notification sent to ${auction.winner_email} for product #${auction.id}`))
+      );
+    }
+
+    // 2. Gửi cho người bán (Báo thành công)
+    if (auction.seller_email) {
+      emailTasks.push(
+        sendMail({
+          to: auction.seller_email,
+          subject: `🔔 Auction Ended: ${auction.name} - Winner Found!`,
+          html: templates.auctionSellerSuccessTemplate(auction.seller_name, auction.name, auction.winner_name, auction.current_price, productUrl)
+        }).then(() => console.log(`✅ Seller notification sent to ${auction.seller_email} for product #${auction.id}`))
+      );
+    }
+  } else {
+    // 3. Gửi cho người bán (Báo thất bại - Không có ai bid)
+    if (auction.seller_email) {
+      emailTasks.push(
+        sendMail({
+          to: auction.seller_email,
+          subject: `⏰ Auction Ended: ${auction.name} - No Bidder`,
+          html: templates.auctionSellerNoBidsTemplate(auction.seller_name, auction.name, newAuctionUrl)
+        }).then(() => console.log(`✅ Seller notification (no bidders) sent to ${auction.seller_email} for product #${auction.id}`))
+      );
+    }
+  }
+
+  await Promise.all(emailTasks);
+};

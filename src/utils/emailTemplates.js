@@ -158,7 +158,7 @@ export const bidRejectedTemplate = (rejectedBidderInfo, productInfo, sellerInfo,
 `;
 
 // ==========================================
-// 2. COMMENT ROUTE TEMPLATES
+// 2. COMMENT ROUTE TEMPLATES (PASSED)
 // ==========================================
 
 export const sellerResponseTemplate = (recipientName, productName, sellerName, content, productUrl) => `
@@ -256,85 +256,85 @@ export const adminPasswordResetTemplate = (user, defaultPassword) => `
 `;
 
 // ==========================================
-// 5. AUCTION NOTIFIER TEMPLATES (CRON JOBS)
+// 5. AUCTION END TEMPLATES
 // ==========================================
 
-export const auctionWonTemplate = (auction, productUrl) => `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-    <h1 style="color: white; margin: 0;">🎉 You Won!</h1>
-  </div>
-  <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-    <p>Dear <strong>${auction.winner_name}</strong>,</p>
-    <p>Congratulations! You have won the auction for:</p>
-    <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #28a745;">
-      <h3 style="margin: 0 0 10px 0; color: #333;">${auction.name}</h3>
-      <p style="font-size: 24px; color: #28a745; margin: 0; font-weight: bold;">
-        ${new Intl.NumberFormat('en-US').format(auction.current_price)} VND
-      </p>
+export const auctionWinnerTemplate = (winnerName, productName, currentPrice, productUrl) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+      <h1 style="color: white; margin: 0;">🎉 You Won!</h1>
     </div>
-    <p>Please complete your payment to finalize the purchase.</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${productUrl}" style="display: inline-block; background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
-        Complete Payment
-      </a>
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+      <p>Dear <strong>${winnerName}</strong>,</p>
+      <p>Congratulations! You have won the auction for:</p>
+      <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #28a745;">
+        <h3 style="margin: 0 0 10px 0; color: #333;">${productName}</h3>
+        <p style="font-size: 24px; color: #28a745; margin: 0; font-weight: bold;">
+          ${new Intl.NumberFormat('en-US').format(currentPrice)} VND
+        </p>
+      </div>
+      <p>Please complete your payment to finalize the purchase.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${productUrl}" style="display: inline-block; background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+          Complete Payment
+        </a>
+      </div>
+      <p style="color: #666; font-size: 14px;">Please complete payment within 3 days to avoid order cancellation.</p>
     </div>
-    <p style="color: #666; font-size: 14px;">Please complete payment within 3 days to avoid order cancellation.</p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px; text-align: center;">This is an automated message from Online Auction. Please do not reply to this email.</p>
   </div>
-  <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-  <p style="color: #888; font-size: 12px; text-align: center;">This is an automated message from Online Auction. Please do not reply to this email.</p>
-</div>
 `;
 
-export const auctionEndedWithWinnerTemplate = (auction, productUrl) => `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <div style="background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-    <h1 style="color: white; margin: 0;">Auction Ended</h1>
-  </div>
-  <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-    <p>Dear <strong>${auction.seller_name}</strong>,</p>
-    <p>Your auction has ended with a winner!</p>
-    <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #72AEC8;">
-      <h3 style="margin: 0 0 10px 0; color: #333;">${auction.name}</h3>
-      <p style="margin: 5px 0;"><strong>Winner:</strong> ${auction.winner_name}</p>
-      <p style="font-size: 24px; color: #72AEC8; margin: 10px 0 0 0; font-weight: bold;">
-        ${new Intl.NumberFormat('en-US').format(auction.current_price)} VND
-      </p>
+export const auctionSellerSuccessTemplate = (sellerName, productName, winnerName, currentPrice, productUrl) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+      <h1 style="color: white; margin: 0;">Auction Ended</h1>
     </div>
-    <p>The winner has been notified to complete payment. You will receive another notification once payment is confirmed.</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${productUrl}" style="display: inline-block; background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-        View Product
-      </a>
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+      <p>Dear <strong>${sellerName}</strong>,</p>
+      <p>Your auction has ended with a winner!</p>
+      <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #72AEC8;">
+        <h3 style="margin: 0 0 10px 0; color: #333;">${productName}</h3>
+        <p style="margin: 5px 0;"><strong>Winner:</strong> ${winnerName}</p>
+        <p style="font-size: 24px; color: #72AEC8; margin: 10px 0 0 0; font-weight: bold;">
+          ${new Intl.NumberFormat('en-US').format(currentPrice)} VND
+        </p>
+      </div>
+      <p>The winner has been notified to complete payment. You will receive another notification once payment is confirmed.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${productUrl}" style="display: inline-block; background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+          View Product
+        </a>
+      </div>
     </div>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px; text-align: center;">This is an automated message from Online Auction. Please do not reply to this email.</p>
   </div>
-  <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-  <p style="color: #888; font-size: 12px; text-align: center;">This is an automated message from Online Auction. Please do not reply to this email.</p>
-</div>
 `;
 
-export const auctionEndedNoBidsTemplate = (auction, createAuctionUrl) => `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <div style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-    <h1 style="color: white; margin: 0;">Auction Ended</h1>
-  </div>
-  <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-    <p>Dear <strong>${auction.seller_name}</strong>,</p>
-    <p>Unfortunately, your auction has ended without any bidders.</p>
-    <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #6c757d;">
-      <h3 style="margin: 0 0 10px 0; color: #333;">${auction.name}</h3>
-      <p style="color: #6c757d; margin: 0;">No bids received</p>
+export const auctionSellerNoBidsTemplate = (sellerName, productName, newAuctionUrl) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+      <h1 style="color: white; margin: 0;">Auction Ended</h1>
     </div>
-    <p>You can relist this product or create a new auction with adjusted pricing.</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${createAuctionUrl}" style="display: inline-block; background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-        Create New Auction
-      </a>
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+      <p>Dear <strong>${sellerName}</strong>,</p>
+      <p>Unfortunately, your auction has ended without any bidders.</p>
+      <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #6c757d;">
+        <h3 style="margin: 0 0 10px 0; color: #333;">${productName}</h3>
+        <p style="color: #6c757d; margin: 0;">No bids received</p>
+      </div>
+      <p>You can relist this product or create a new auction with adjusted pricing.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${newAuctionUrl}" style="display: inline-block; background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+          Create New Auction
+        </a>
+      </div>
     </div>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="color: #888; font-size: 12px; text-align: center;">This is an automated message from Online Auction. Please do not reply to this email.</p>
   </div>
-  <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-  <p style="color: #888; font-size: 12px; text-align: center;">This is an automated message from Online Auction. Please do not reply to this email.</p>
-</div>
 `;
 
 // ==========================================

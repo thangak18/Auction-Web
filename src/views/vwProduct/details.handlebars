@@ -552,7 +552,7 @@
             this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             
             // Send reject request
-            fetch('/products/reject-bidder', {
+            fetch('/products/bids/reject-bidder', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -631,7 +631,7 @@
             this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             
             // Send unreject request
-            fetch('/products/unreject-bidder', {
+            fetch('/products/bids/unreject-bidder', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1670,12 +1670,12 @@
             <i class="bi bi-clock-history" style="color: #72AEC8;"></i> Bidding History
           </h5>
           {{#if isAuthenticated}}
-          <a href="/products/bidding-history?id={{product.id}}" class="btn btn-sm fw-bold flex-shrink-0"
+          <a href="/products/bids?id={{product.id}}" class="btn btn-sm fw-bold flex-shrink-0"
             style="background: linear-gradient(135deg, #72AEC8 0%, #5a9ab8 100%); border: none; color: white;">
             <i class="bi bi-list-ul me-1"></i>View Full
           </a>
           {{else}}
-          <a href="/account/signin?retUrl=/products/bidding-history?id={{product.id}}"
+          <a href="/account/signin?retUrl=/products/bids?id={{product.id}}"
             class="btn btn-outline-primary flex-shrink-0">
             <span class="btn-text"><i class="bi bi-lock-fill me-1"></i>Signin</span>
           </a>
@@ -1955,7 +1955,7 @@
           </div>
         </div>
 
-        <form id="bidForm" action="/products/bid" method="POST">
+        <form id="bidForm" action="/products/bids" method="POST">
           <input type="hidden" name="productId" value="{{product.id}}">
           <input type="hidden" name="bidAmount" id="bidAmountRaw" value="">
 

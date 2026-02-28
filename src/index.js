@@ -26,6 +26,9 @@ import adminSystemRouter from './routes/admin/system.route.js';
 import sellerRouter from './routes/seller.route.js';
 import watchlistRouter from './routes/watchlist.route.js';
 import commentRouter from './routes/comment.route.js';
+import biddingRouter from './routes/bidding.route.js';
+import orderRouter from './routes/order.route.js';
+import reviewRouter from './routes/review.route.js';
 // Import Middlewares
 import { isAuthenticated, isSeller, isAdmin } from './middlewares/auth.mdw.js';
 import * as categoryModel from './models/category.model.js';
@@ -403,7 +406,9 @@ app.use('/products', productRouter);
 app.use('/account', accountRouter);
 app.use('/products/watchlist', watchlistRouter);
 app.use('/products/comment', commentRouter);
-
+app.use('/products/bids', biddingRouter);
+app.use('/products/order', orderRouter);
+app.use('/products/review', orderRouter);
 
 app.listen(PORT, function () {
   console.log(`Server is running on http://localhost:${PORT}`);
