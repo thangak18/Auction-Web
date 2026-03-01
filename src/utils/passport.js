@@ -22,22 +22,24 @@ passport.deserializeUser(async (id, done) => {
 // Factory Function: Tạo logic xử lý chung cho mọi nhà cung cấp OAuth
 const createOAuthVerifyCallback = (providerName) => async (accessToken, refreshToken, profile, done) => {
   try {
-    const email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null;
+    let email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null;
     
+    // Nếu provider không trả về email, tạo email thay thế từ profile ID
     if (!email) {
-      return done(new Error(`Email not provided by ${providerName}`), null);
+      email = `${providerName}_${profile.id}@oauth.local`;
     }
 
     let user = await userModel.findByEmail(email);
     if (!user) {
       // Tự động đăng ký nếu chưa có tài khoản
       user = await userModel.add({
-        fullname: profile.displayName || profile.username,
+        fullname: profile.displayName || profile.username || 'OAuth User',
         email: email,
         address: '',
         role: 'bidder',
         oauth_provider: providerName,
         oauth_id: profile.id,
+        password_hash: null,
         email_verified: true
       });
     }
@@ -57,7 +59,7 @@ passport.use(new GoogleStrategy({
 passport.use(new FacebookStrategy({
   clientID: process.env.FACEBOOK_APP_ID,
   clientSecret: process.env.FACEBOOK_APP_SECRET,
-  callbackURL: "/account/auth/facebook/callback",
+  callbackURL: process.env.FACEBOOK_CALLBACK_URL || "/account/auth/facebook/callback",
   profileFields: ['id', 'displayName', 'emails']
 }, createOAuthVerifyCallback('facebook')));
 
@@ -68,7 +70,6 @@ passport.use(new GitHubStrategy({
   scope: ['user:email']
 }, createOAuthVerifyCallback('github')));
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+
 
 export default passport;
