@@ -34,8 +34,11 @@ const createOAuthVerifyCallback = (providerName) => async (accessToken, refreshT
       user = await userModel.add({
         fullname: profile.displayName || profile.username,
         email: email,
+        address: '',
         role: 'bidder',
-        auth_provider: providerName 
+        oauth_provider: providerName,
+        oauth_id: profile.id,
+        email_verified: true
       });
     }
     return done(null, user);
