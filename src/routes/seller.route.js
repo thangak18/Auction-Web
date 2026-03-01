@@ -5,9 +5,11 @@ import * as productDescUpdateModel from '../models/productDescriptionUpdate.mode
 import * as biddingHistoryModel from '../models/biddingHistory.model.js';
 import * as productCommentModel from '../models/productComment.model.js';
 import { sendMail } from '../utils/mailer.js';
+import { uploadService } from '../middlewares/upload.mdw.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { productDescriptionUpdatedTemplate } from '../utils/emailTemplates.js';
 
 const router = express.Router();
 
@@ -168,26 +170,14 @@ router.post('/products/add', async function (req, res) {
     res.redirect('/seller/products/add');
 });
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/uploads/');
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + '-' + file.originalname);
-    }
-});
-
-const upload = multer({ storage: storage });
-
-router.post('/products/upload-thumbnail', upload.single('thumbnail'), async function (req, res) {
+router.post('/products/upload-thumbnail', uploadService.singleThumbnail, async function (req, res) {
     res.json({
         success: true,
         file: req.file
     });
 });
 
-router.post('/products/upload-subimages', upload.array('images', 10), async function (req, res) {
+router.post('/products/upload-subimages', uploadService.arrayImages(10), async function (req, res) {
     res.json({
         success: true,
         files: req.files
@@ -349,29 +339,7 @@ router.post('/products/:id/append-description', async function (req, res) {
                 return sendMail({
                     to: user.email,
                     subject: `[Auction Update] New description added for "${product.name}"`,
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                            <div style="background: linear-gradient(135deg, #72AEC8 0%, #5a9bb8 100%); padding: 20px; text-align: center;">
-                                <h1 style="color: white; margin: 0;">Product Description Updated</h1>
-                            </div>
-                            <div style="padding: 20px; background: #f9f9f9;">
-                                <p>Hello <strong>${user.fullname}</strong>,</p>
-                                <p>The seller has added new information to the product description:</p>
-                                <div style="background: white; padding: 15px; border-left: 4px solid #72AEC8; margin: 15px 0;">
-                                    <h3 style="margin: 0 0 10px 0; color: #333;">${product.name}</h3>
-                                    <p style="margin: 0; color: #666;">Current Price: <strong style="color: #72AEC8;">${new Intl.NumberFormat('en-US').format(product.current_price)} VND</strong></p>
-                                </div>
-                                <div style="background: #fff8e1; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #f57c00;"><i>✉</i> New Description Added:</p>
-                                    <div style="color: #333;">${description.trim()}</div>
-                                </div>
-                                <p>View the product to see the full updated description:</p>
-                                <a href="${productUrl}" style="display: inline-block; background: #72AEC8; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 10px 0;">View Product</a>
-                                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-                                <p style="color: #999; font-size: 12px;">You received this email because you placed a bid or asked a question on this product.</p>
-                            </div>
-                        </div>
-                    `
+                    html: productDescriptionUpdatedTemplate(user.fullname, product.name, product.current_price, description, productUrl)
                 }).catch(err => console.error('Failed to send email to', user.email, err));
             })).catch(err => console.error('Email notification error:', err));
         }

@@ -778,3 +778,17 @@ export async function markEndNotificationSent(productId) {
     end_notification_sent: new Date(),
   });
 }
+
+/**
+ * Tự động đóng các phiên đấu giá đã qua thời gian end_at
+ * @returns {Promise<number>} Số lượng sản phẩm đã được đóng
+ */
+export async function closeExpiredAuctions() {
+  const now = new Date();
+  
+  return db('products')
+    .where('end_at', '<=', now)
+    .whereNull('closed_at')
+    .whereNull('is_sold')
+    .update({ closed_at: now });
+}
