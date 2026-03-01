@@ -3,13 +3,16 @@ import * as watchlistModel from '../models/watchlist.model.js';
 import * as reviewModel from '../models/review.model.js';
 import * as autoBiddingModel from '../models/autoBidding.model.js';
 import { isAuthenticated } from '../middlewares/auth.mdw.js';
+import { calculateStatistics, getRatingPoint } from '../services/review.service.js';
 
 const router = express.Router();
 
 // Ratings & Reviews
 router.get('/ratings', isAuthenticated, async (req, res) => {
   const reviews = await reviewModel.getReviewsByUserId(req.session.authUser.id);
-  res.render('vwAccount/rating', { reviews });
+  const rating_point = await getRatingPoint(req.session.authUser.id);
+  const { totalReviews, positiveReviews, negativeReviews } = calculateStatistics(reviews);
+  res.render('vwAccount/rating', { rating_point, totalReviews, positiveReviews, negativeReviews, reviews });
 });
 
 router.post('/won-auctions/:productId/rate-seller', isAuthenticated, async (req, res) => {
