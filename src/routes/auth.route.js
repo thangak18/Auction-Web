@@ -54,7 +54,7 @@ router.post("/signin", async (req, res) => {
 
   if (!user.email_verified) {
     await authService.sendOtp(user, "verify_email");
-    return res.redirect(\`/account/verify-email?email=\${encodeURIComponent(email)}\`);
+    return res.redirect(`/account/verify-email?email=${encodeURIComponent(email)}`);
   }
 
   req.session.authUser = {
@@ -82,7 +82,7 @@ router.post("/signup", async (req, res) => {
   if (!recaptchaResponse) {
     errors.captcha = "Please check the captcha box.";
   } else {
-    const verifyUrl = \`https://www.google.com/recaptcha/api/siteverify?secret=\${process.env.RECAPTCHA_SECRET}&response=\${recaptchaResponse}\`;
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${recaptchaResponse}`;
     const response = await fetch(verifyUrl, { method: "POST" });
     const data = await response.json();
     if (!data.success) errors.captcha = "Captcha verification failed.";
@@ -102,7 +102,7 @@ router.post("/signup", async (req, res) => {
   const newUser = await userModel.add({ email, fullname, address, password_hash: hashedPassword, role: "bidder" });
 
   await authService.sendOtp(newUser, "verify_email");
-  res.redirect(\`/account/verify-email?email=\${encodeURIComponent(email)}\`);
+  res.redirect(`/account/verify-email?email=${encodeURIComponent(email)}`);
 });
 
 // --- XỬ LÝ XÁC THỰC EMAIL (OTP) ---
