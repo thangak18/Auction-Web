@@ -4,18 +4,6 @@ import db from "../utils/db.js";
 // HELPER FUNCTIONS (DRY Principle)
 // ============================================================
 
-/**
- * Apply common joins to a query
- * @param {Object} query - Knex query builder
- * @param {Object} options - Options object
- * @param {number} options.userId - Current user ID for watchlist check
- * @param {boolean} options.includeWatchlist - Whether to include watchlist join
- * @param {boolean} options.includeCategories - Whether to include categories join
- * @param {boolean} options.includeSellerInfo - Whether to include seller info
- * @param {boolean} options.includeBidderInfo - Whether to include bidder info
- * @param {boolean} options.includeImages - Whether to include product images
- * @returns {Object} Modified query builder
- */
 function applyCommonJoins(query, options = {}) {
   const { userId = null, includeWatchlist = false, includeCategories = false, includeSellerInfo = false, includeBidderInfo = false, includeImages = false } = options;
 
@@ -51,12 +39,6 @@ function applyCommonJoins(query, options = {}) {
   return query;
 }
 
-/**
- * Apply sorting to a query
- * @param {Object} query - Knex query builder
- * @param {string} sort - Sort option: 'price_asc', 'price_desc', 'newest', 'oldest', 'ending_soon'
- * @returns {Object} Modified query builder
- */
 function applySorting(query, sort = "") {
   switch (sort) {
     case "price_asc":
@@ -75,11 +57,7 @@ function applySorting(query, sort = "") {
   }
 }
 `123456789qứ3ed4rf5tg6yh7ụ8i9oklpZvbnm,`;
-/**
- * Process product data with sub_images
- * @param {Array} rows - Array of rows from database (same product with multiple images)
- * @returns {Object|null} Product object with sub_images array, or null if no rows
- */
+
 function processProductWithImages(rows) {
   if (rows.length === 0) return null;
 
@@ -95,18 +73,6 @@ function processProductWithImages(rows) {
 // MAIN PRODUCT QUERY FUNCTIONS
 // ============================================================
 
-/**
- * Find product by ID with flexible options
- * Replaces: findByProductId, findByProductId2, findByProductIdForAdmin
- * @param {number} productId - Product ID
- * @param {Object} options - Query options
- * @param {number} options.userId - Current user ID
- * @param {boolean} options.includeWatchlist - Include watchlist status
- * @param {boolean} options.includeSellerInfo - Include seller info
- * @param {boolean} options.includeImages - Include and process sub_images
- * @param {boolean} options.async - Return processed product (with sub_images) vs raw query
- * @returns {Promise<Object>|Object} Product object or query builder
- */
 export async function findProductById(productId, options = {}) {
   const { userId = null, includeWatchlist = false, includeSellerInfo = false, includeImages = false, async = true } = options;
 
@@ -785,10 +751,6 @@ export async function markEndNotificationSent(productId) {
  */
 export async function closeExpiredAuctions() {
   const now = new Date();
-  
-  return db('products')
-    .where('end_at', '<=', now)
-    .whereNull('closed_at')
-    .whereNull('is_sold')
-    .update({ closed_at: now });
+
+  return db("products").where("end_at", "<=", now).whereNull("closed_at").whereNull("is_sold").update({ closed_at: now });
 }
