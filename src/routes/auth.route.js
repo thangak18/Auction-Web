@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import passport from '../utils/passport.js';
 import * as userModel from '../models/user.model.js';
 import * as authService from '../services/auth.service.js';
+import db from '../utils/db.js';
 
 const router = express.Router();
 
@@ -18,6 +19,34 @@ router.get('/signin', (req, res) => {
 });
 
 router.get('/forgot-password', (req, res) => res.render('vwAccount/auth/forgot-password'));
+
+// --- XỬ LÝ ĐĂNG NHẬP ---
+router.post('/signin', async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await userModel.findByEmail(email);
+  if (!user) {
+    return res.render('vwAccount/auth/signin', { error_message: 'Invalid email or password.' });
+  }
+
+  if (!user.password_hash) {
+    return res.render('vwAccount/auth/signin', { error_message: 'This account uses social login. Please sign in with Google/Facebook/GitHub.' });
+  }
+
+  const isMatch = bcrypt.compareSync(password, user.password_hash);
+  if (!isMatch) {
+    return res.render('vwAccount/auth/signin', { error_message: 'Invalid email or password.' });
+  }
+
+  if (!user.email_verified) {
+    await authService.sendOtp(user, 'verify_email');
+    return res.redirect(`/account/verify-email?email=${encodeURIComponent(email)}`);
+  }
+
+  req.session.authUser = user;
+  req.session.isAuthenticated = true;
+  res.redirect('/');
+});
 
 router.get('/verify-email', (req, res) => {
   const { email } = req.query;
@@ -44,6 +73,13 @@ router.post('/signup', async (req, res) => {
     return res.render('vwAccount/auth/signup', { errors, old: { fullname, email, address }, recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY });
   }
 
+  // Kiểm tra email đã tồn tại chưa
+  const existingUser = await userModel.findByEmail(email);
+  if (existingUser) {
+    errors.email = 'Email already exists.';
+    return res.render('vwAccount/auth/signup', { errors, old: { fullname, email, address }, recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY });
+  }
+
   const hashedPassword = bcrypt.hashSync(password, 10);
   const newUser = await userModel.add({ email, fullname, address, password_hash: hashedPassword, role: 'bidder' });
 
@@ -51,6 +87,41 @@ router.post('/signup', async (req, res) => {
   await authService.sendOtp(newUser, 'verify_email');
 
   res.redirect(`/account/verify-email?email=${encodeURIComponent(email)}`);
+});
+
+// --- XỬ LÝ XÁC THỰC EMAIL (OTP) ---
+router.post('/verify-email', async (req, res) => {
+  const { email, otp } = req.body;
+  const user = await userModel.findByEmail(email);
+
+  if (!user) {
+    return res.render('vwAccount/auth/verify-otp', { email, error_message: 'User not found.' });
+  }
+
+  const validOtp = await userModel.findValidOtp({ user_id: user.id, otp_code: otp, purpose: 'verify_email' });
+
+  if (!validOtp) {
+    return res.render('vwAccount/auth/verify-otp', { email, error_message: 'Invalid or expired OTP.' });
+  }
+
+  await userModel.markOtpUsed(validOtp.id);
+  await userModel.verifyUserEmail(user.id);
+
+  req.session.success_message = 'Email verified successfully! Please sign in.';
+  res.redirect('/account/signin');
+});
+
+// --- GỬI LẠI OTP ---
+router.post('/resend-otp', async (req, res) => {
+  const { email } = req.body;
+  const user = await userModel.findByEmail(email);
+
+  if (!user) {
+    return res.render('vwAccount/auth/verify-otp', { email, error_message: 'User not found.' });
+  }
+
+  await authService.sendOtp(user, 'verify_email');
+  res.render('vwAccount/auth/verify-otp', { email, info_message: 'A new OTP has been sent to your email.' });
 });
 
 // --- XỬ LÝ QUÊN MẬT KHẨU ---
@@ -67,6 +138,28 @@ router.post('/verify-forgot-password-otp', async (req, res) => {
   const isValid = await userModel.verifyOtp(email, otp, 'reset_password');
   if (!isValid) return res.render('vwAccount/auth/verify-forgot-password-otp', { email, error_message: 'Invalid or expired OTP.' });
   res.render('vwAccount/auth/reset-password', { email, otp });
+});
+
+// --- ĐẶT LẠI MẬT KHẨU ---
+router.post('/reset-password', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await userModel.findByEmail(email);
+
+  if (!user) {
+    return res.render('vwAccount/auth/forgot-password', { error_message: 'User not found.' });
+  }
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  await db('users').where('id', user.id).update({ password_hash: hashedPassword });
+
+  req.session.success_message = 'Password reset successfully! Please sign in.';
+  res.redirect('/account/signin');
+});
+
+// --- ĐĂNG XUẤT ---
+router.post('/signout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
 });
 
 // --- OAUTH CALLBACKS ---

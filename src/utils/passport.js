@@ -49,8 +49,6 @@ const createOAuthVerifyCallback = (providerName) => async (accessToken, refreshT
   }
 };
 
-console.log("FB ID:", process.env.FACEBOOK_APP_ID);
-
 // Áp dụng Factory Function cho cả 3 chiến lược
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
