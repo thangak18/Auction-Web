@@ -12,6 +12,7 @@ import * as orderModel from '../models/order.model.js';
 import * as invoiceModel from '../models/invoice.model.js';
 import * as orderChatModel from '../models/orderChat.model.js';
 import * as productServices from '../services/product.service.js';
+import * as reviewServices from '../services/review.service.js';
 import { isAuthenticated } from '../middlewares/auth.mdw.js';
 import db from '../utils/db.js';
 import { calculatePagination } from '../utils/pagination.js';
@@ -390,8 +391,7 @@ router.post('/buy-now', isAuthenticated, async (req, res) => {
       // 6. Check if bidder is unrated and product doesn't allow unrated bidders
       if (!product.allow_unrated_bidder) {
         const bidder = await trx('users').where('id', userId).first();
-        const ratingData = await reviewModel.calculateRatingPoint(userId);
-        const ratingPoint = ratingData ? ratingData.rating_point : 0;
+        const ratingPoint = await reviewServices.getRatingPoint(userId);
         
         if (ratingPoint === 0) {
           throw new Error('This product does not allow bidders without ratings');
