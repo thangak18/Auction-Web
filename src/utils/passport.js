@@ -22,27 +22,35 @@ passport.deserializeUser(async (id, done) => {
 // Factory Function: Tạo logic xử lý chung cho mọi nhà cung cấp OAuth
 const createOAuthVerifyCallback = (providerName) => async (accessToken, refreshToken, profile, done) => {
   try {
-    const email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null;
+    let email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null;
     
+    // Nếu provider không trả về email, tạo email thay thế từ profile ID
     if (!email) {
-      return done(new Error(`Email not provided by ${providerName}`), null);
+      email = `${providerName}_${profile.id}@oauth.local`;
     }
 
     let user = await userModel.findByEmail(email);
     if (!user) {
       // Tự động đăng ký nếu chưa có tài khoản
-      user = await userModel.add({
-        fullname: profile.displayName || profile.username,
-        email: email,
-        role: 'bidder',
-        auth_provider: providerName 
-      });
+      // Sửa lại đoạn gọi userModel.add trong Factory Function của bạn
+user = await userModel.add({
+    fullname: profile.displayName || profile.username || 'OAuth User',
+    email: email,
+    role: 'bidder',
+    oauth_provider: providerName,
+    oauth_id: profile.id, // Bổ sung để không bị lỗi NULL oauth_id
+    address: '',          // Bổ sung để không bị lỗi NOT NULL address
+    password_hash: null,  // Tài khoản OAuth không cần password
+    email_verified: true   // Mặc định true vì đã verify qua Provider
+});
     }
     return done(null, user);
   } catch (err) {
     return done(err, null);
   }
 };
+
+console.log("FB ID:", process.env.FACEBOOK_APP_ID);
 
 // Áp dụng Factory Function cho cả 3 chiến lược
 passport.use(new GoogleStrategy({
@@ -54,7 +62,7 @@ passport.use(new GoogleStrategy({
 passport.use(new FacebookStrategy({
   clientID: process.env.FACEBOOK_APP_ID,
   clientSecret: process.env.FACEBOOK_APP_SECRET,
-  callbackURL: "/account/auth/facebook/callback",
+  callbackURL: process.env.FACEBOOK_CALLBACK_URL || "/account/auth/facebook/callback",
   profileFields: ['id', 'displayName', 'emails']
 }, createOAuthVerifyCallback('facebook')));
 
@@ -65,7 +73,6 @@ passport.use(new GitHubStrategy({
   scope: ['user:email']
 }, createOAuthVerifyCallback('github')));
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+
 
 export default passport;
