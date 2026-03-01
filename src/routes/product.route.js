@@ -12,12 +12,9 @@ import * as orderModel from '../models/order.model.js';
 import * as invoiceModel from '../models/invoice.model.js';
 import * as orderChatModel from '../models/orderChat.model.js';
 import * as productServices from '../services/product.service.js';
-import * as reviewServices from '../services/review.service.js';
 import { isAuthenticated } from '../middlewares/auth.mdw.js';
-import { sendMail } from '../utils/mailer.js';
 import db from '../utils/db.js';
 import { calculatePagination } from '../utils/pagination.js';
-import { uploadService } from '../middlewares/upload.mdw.js';
 
 const router = express.Router();
 

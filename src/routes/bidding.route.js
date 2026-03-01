@@ -1,14 +1,11 @@
 import express from 'express';
 import * as productModel from '../models/product.model.js';
-import * as reviewModel from '../models/review.model.js';
-import * as userModel from '../models/user.model.js';
 import * as biddingHistoryModel from '../models/biddingHistory.model.js';
-import * as systemSettingModel from '../models/systemSetting.model.js';
 import * as rejectedBidderModel from '../models/rejectedBidder.model.js';
 import { isAuthenticated } from '../middlewares/auth.mdw.js';
 import { sendMail } from '../utils/mailer.js';
 import db from '../utils/db.js';
-import { bidPlacedTemplate, bidRejectedTemplate, newBidReceivedTemplate, outbidOrPriceUpdateTemplate } from '../utils/emailTemplates.js';
+import { bidRejectedTemplate } from '../utils/emailTemplates.js';
 import { sendBidNotificationEmails } from '../services/mail.service.js';
 import { placeBidTransaction } from '../services/bidding.service.js';
 
