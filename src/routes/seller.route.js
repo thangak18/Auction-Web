@@ -6,7 +6,6 @@ import * as biddingHistoryModel from '../models/biddingHistory.model.js';
 import * as productCommentModel from '../models/productComment.model.js';
 import { sendMail } from '../utils/mailer.js';
 import { uploadService } from '../middlewares/upload.mdw.js';
-import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { productDescriptionUpdatedTemplate } from '../utils/emailTemplates.js';
